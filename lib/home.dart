@@ -25,6 +25,46 @@ class _HomeState extends State<Home> {
 
   final _sponsoredIdsController = TextEditingController();
 
+  static const _knownSponsoredIds = [
+    'MainStage',
+    'ExhibitionBar',
+    'RelaxationBeach',
+    'NetworkingZone',
+    'BusinessHub',
+    'MeetingTables',
+    'Cafe',
+    'MediaCentre',
+    'Info',
+    'BreakOutStage',
+    'ExhibitorLounge',
+    'BeerGarden',
+    'MassageArea',
+    'SpeakerLounge',
+    'ConnectZone',
+  ];
+
+  Set<String> get _selectedIds => _sponsoredIdsController.text
+      .split(',')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toSet();
+
+  void _toggleId(String id) async {
+    final current = _selectedIds;
+    if (current.contains(id)) {
+      current.remove(id);
+    } else {
+      current.add(id);
+    }
+    setState(() {
+      _sponsoredIdsController.text = current.join(', ');
+    });
+    final svgString = _uploadedSvgBytes != null
+        ? String.fromCharCodes(_uploadedSvgBytes!)
+        : await rootBundle.loadString('assets/floorplan.svg');
+    _parseSponsoredAreaBooths(svgString);
+  }
+
   @override
   void dispose() {
     _sponsoredIdsController.dispose();
@@ -40,12 +80,6 @@ class _HomeState extends State<Home> {
     getSponsoredAreaBooths();
   }
 
-  // @override
-  // void didUpdateWidget(Home oldWidget) {
-  //   super.didUpdateWidget(oldWidget);
-  //   _photoViewController.position = Offset(-100, 110);
-  // }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,7 +90,7 @@ class _HomeState extends State<Home> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // ── Left panel ──────────────────────────────────────
             SizedBox(
@@ -66,7 +100,7 @@ class _HomeState extends State<Home> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: MainAxisSize.max,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
@@ -227,6 +261,7 @@ class _HomeState extends State<Home> {
                   const SizedBox(height: 16),
                   // SponsoredAreaBooths card
                   Expanded(
+                    flex: 2,
                     child: Card(
                       elevation: 2,
                       child: Padding(
@@ -256,6 +291,20 @@ class _HomeState extends State<Home> {
                               ],
                             ),
                             const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: _knownSponsoredIds.map((id) {
+                                final selected = _selectedIds.contains(id);
+                                return FilterChip(
+                                  label: Text(id),
+                                  selected: selected,
+                                  onSelected: (_) => _toggleId(id),
+                                  visualDensity: VisualDensity.compact,
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 8),
                             Row(
                               children: [
                                 Expanded(
@@ -267,6 +316,7 @@ class _HomeState extends State<Home> {
                                       border: OutlineInputBorder(),
                                       isDense: true,
                                     ),
+                                    onChanged: (_) => setState(() {}),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -282,6 +332,25 @@ class _HomeState extends State<Home> {
                                     _parseSponsoredAreaBooths(svgString);
                                   },
                                   child: const Text('Apply'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.info_outline,
+                                  size: 14,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Sponsored IDs must match the ID found inside the SVG.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: Colors.grey,
+                                        fontStyle: FontStyle.italic,
+                                      ),
                                 ),
                               ],
                             ),
