@@ -25,6 +25,23 @@ class _HomeState extends State<Home> {
 
   final _sponsoredIdsController = TextEditingController();
 
+  static const _boothLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
+  Set<String> _selectedLetters = {};
+
+  void _toggleLetter(String letter) async {
+    setState(() {
+      if (_selectedLetters.contains(letter)) {
+        _selectedLetters.remove(letter);
+      } else {
+        _selectedLetters.add(letter);
+      }
+    });
+    final svgString = _uploadedSvgBytes != null
+        ? String.fromCharCodes(_uploadedSvgBytes!)
+        : await rootBundle.loadString('assets/floorplan.svg');
+    _parseExhibitorBooths(svgString);
+  }
+
   static const _knownSponsoredIds = [
     'MainStage',
     'ExhibitionBar',
@@ -38,9 +55,12 @@ class _HomeState extends State<Home> {
     'BreakOutStage',
     'ExhibitorLounge',
     'BeerGarden',
-    'MassageArea',
-    'SpeakerLounge',
+    'MassageZone',
     'ConnectZone',
+    'SpeakersLounge',
+    'Workshop1',
+    'Workshop2',
+    'MeetupZone',
   ];
 
   Set<String> get _selectedIds => _sponsoredIdsController.text
@@ -74,10 +94,6 @@ class _HomeState extends State<Home> {
   @override
   void initState() {
     super.initState();
-
-    getDimensions();
-    getExhibitorBooths();
-    getSponsoredAreaBooths();
   }
 
   @override
@@ -117,11 +133,22 @@ class _HomeState extends State<Home> {
                                 height: 308,
                                 fit: BoxFit.contain,
                               )
-                            : SvgPicture.asset(
-                                'assets/floorplan.svg',
+                            : Container(
                                 width: 308,
                                 height: 308,
-                                fit: BoxFit.contain,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'No SVG uploaded',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
                               ),
                       ),
                       const SizedBox(height: 12),
@@ -195,7 +222,8 @@ class _HomeState extends State<Home> {
             const SizedBox(width: 16),
             // ── Right panel ─────────────────────────────────────
             Expanded(
-              child: Column(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // ExhibitorBooths card
                   Expanded(
@@ -228,6 +256,22 @@ class _HomeState extends State<Home> {
                               ],
                             ),
                             const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: _boothLetters.map((letter) {
+                                final selected = _selectedLetters.contains(
+                                  letter,
+                                );
+                                return FilterChip(
+                                  label: Text(letter),
+                                  selected: selected,
+                                  onSelected: (_) => _toggleLetter(letter),
+                                  visualDensity: VisualDensity.compact,
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 8),
                             Expanded(
                               child: Container(
                                 decoration: BoxDecoration(
@@ -239,7 +283,7 @@ class _HomeState extends State<Home> {
                                 ),
                                 child: SingleChildScrollView(
                                   padding: const EdgeInsets.all(12),
-                                  child: Text(
+                                  child: SelectableText(
                                     _exhibitorBooths.isNotEmpty
                                         ? const JsonEncoder.withIndent(
                                             '  ',
@@ -258,10 +302,9 @@ class _HomeState extends State<Home> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(width: 16),
                   // SponsoredAreaBooths card
                   Expanded(
-                    flex: 2,
                     child: Card(
                       elevation: 2,
                       child: Padding(
@@ -306,10 +349,12 @@ class _HomeState extends State<Home> {
                             ),
                             const SizedBox(height: 8),
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Expanded(
                                   child: TextField(
                                     controller: _sponsoredIdsController,
+                                    maxLines: null,
                                     decoration: const InputDecoration(
                                       labelText:
                                           'Sponsored IDs (comma-separated)',
@@ -366,7 +411,7 @@ class _HomeState extends State<Home> {
                                 ),
                                 child: SingleChildScrollView(
                                   padding: const EdgeInsets.all(12),
-                                  child: Text(
+                                  child: SelectableText(
                                     _sponsoredAreaBooths.isNotEmpty
                                         ? const JsonEncoder.withIndent(
                                             '  ',
@@ -449,8 +494,13 @@ class _HomeState extends State<Home> {
   }
 
   void _parseExhibitorBooths(String svgString) {
+    if (_selectedLetters.isEmpty) {
+      setState(() => _exhibitorBooths = {});
+      return;
+    }
     final document = XmlDocument.parse(svgString);
-    final boothPattern = RegExp(r'^[ABC]\d{2}$');
+    final pattern = '[${_selectedLetters.join()}]';
+    final boothPattern = RegExp('^$pattern\\d{2}\$');
     final Map<String, Map<String, String>> booths = {};
 
     for (final group in document.findAllElements('g')) {
